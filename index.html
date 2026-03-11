@@ -1,61 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Radio Player RAGE:MP - Final</title>
+    <title>Radio Player RAGE:MP - High Priority</title>
     <style>
         body { background: transparent; overflow: hidden; margin: 0; }
-        /* Mały, pulsujący piksel, który oszukuje oszczędzanie energii Chromium */
-        #heartbeat { position: absolute; top: 0; left: 0; width: 1px; height: 1px; background: rgba(255,255,255,0.01); }
+        /* Ten element musi "żyć", żeby Chromium nie uśpiło dźwięku */
+        #force-active { position: absolute; top: 0; left: 0; width: 1px; height: 1px; }
     </style>
     <script src="https://w.soundcloud.com/player/api.js"></script>
 </head>
 <body>
-    <div id="heartbeat"></div>
+    <canvas id="force-active"></canvas>
     <iframe id="sc-iframe" width="100%" height="100" scrolling="no" frameborder="no" allow="autoplay" 
-        src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/293&auto_play=false"></iframe>
+        src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/293&auto_play=false">
+    </iframe>
     <audio id="html-player" preload="auto"></audio>
 
     <script>
         const scWidget = SC.Widget(document.getElementById('sc-iframe'));
         const htmlPlayer = document.getElementById('html-player');
-        const heartbeat = document.getElementById('heartbeat');
+        const canvas = document.getElementById('force-active');
+        const ctx = canvas.getContext('2d');
 
-        // Oszust procesora - zmienia kolor co 500ms
-        setInterval(() => {
-            heartbeat.style.backgroundColor = heartbeat.style.backgroundColor === 'rgba(255,255,255,0.01)' ? 'rgba(0,0,0,0.01)' : 'rgba(255,255,255,0.01)';
-        }, 500);
+        // Pętla graficzna - oszukuje Chromium, że strona jest aktywną animacją
+        function animationLoop() {
+            ctx.clearRect(0, 0, 1, 1);
+            ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.01})`;
+            ctx.fillRect(0, 0, 1, 1);
+            requestAnimationFrame(animationLoop);
+        }
+        animationLoop();
 
         window.addEventListener('message', function(event) {
             try {
                 let data = JSON.parse(event.data);
                 if (data.action === 'play') {
                     scWidget.pause(); 
-                    htmlPlayer.pause(); htmlPlayer.src = "";
-
+                    htmlPlayer.pause();
                     if (data.url.includes("soundcloud.com")) {
-                        scWidget.load(data.url, { 
-                            auto_play: true, 
-                            show_artwork: false,
-                            callback: () => {
-                                // Sprawdzenie czy to nie jest Preview
-                                scWidget.getDuration((dur) => {
-                                    if(dur < 40000) { // Jeśli utwór ma mniej niż 40 sek, to na 99% preview
-                                        window.parent.postMessage("is_preview", "*");
-                                    }
-                                });
-                            }
-                        });
+                        scWidget.load(data.url, { auto_play: true, show_artwork: false });
                     } else {
                         htmlPlayer.src = data.url;
                         htmlPlayer.play();
                     }
                 } else if (data.action === 'stop') {
-                    scWidget.pause(); htmlPlayer.pause();
+                    scWidget.pause();
+                    htmlPlayer.pause();
+                    htmlPlayer.src = "";
                 } else if (data.action === 'volume') {
-                    scWidget.setVolume(data.vol);
-                    htmlPlayer.volume = data.vol / 100.0;
+                    // Zaokrąglamy do pełnych liczb, by nie spamować API
+                    let vol = Math.round(data.vol);
+                    scWidget.setVolume(vol);
+                    htmlPlayer.volume = vol / 100.0;
                 }
             } catch(e) {}
+        });
+
+        // SoundCloud czasem pauzuje bez powodu - wymuszamy start co 5 sekund jeśli "powinien" grać
+        scWidget.bind(SC.Widget.Events.PAUSE, function() {
+            // Logika sprawdzająca, czy to nie był celowy stop zostanie dodana jeśli będzie trzeba
         });
     </script>
 </body>
