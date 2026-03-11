@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Radio Player RAGE:MP</title>
+    <style>body { background: transparent; overflow: hidden; margin: 0; }</style>
+</head>
+<body>
+    <div id="player"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        let ytPlayer;
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('player', {
+                height: '200', width: '200',
+                playerVars: { 'autoplay': 1, 'controls': 0, 'origin': window.location.origin },
+            });
+        }
+
+        // Odbieranie sygnałów prosto z Twojego serwera GTA!
+        window.addEventListener('message', function(event) {
+            try {
+                let data = JSON.parse(event.data);
+                if (data.action === 'play' && ytPlayer) {
+                    ytPlayer.loadVideoById(data.videoId);
+                    ytPlayer.playVideo();
+                } else if (data.action === 'stop' && ytPlayer) {
+                    ytPlayer.stopVideo();
+                } else if (data.action === 'volume' && ytPlayer) {
+                    ytPlayer.setVolume(data.vol);
+                }
+            } catch(e) {}
+        });
+    </script>
+</body>
+</html>
