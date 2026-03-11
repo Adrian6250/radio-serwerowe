@@ -1,59 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Radio Player RAGE:MP - SC & Audio</title>
+    <title>Radio Player RAGE:MP</title>
     <style>body { background: transparent; overflow: hidden; margin: 0; }</style>
     <script src="https://w.soundcloud.com/player/api.js"></script>
 </head>
 <body>
-    <iframe id="sc-iframe" width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/293&auto_play=false"></iframe>
-    
-    <audio id="html-player"></audio>
+    <iframe id="sc-iframe" width="100%" height="100" scrolling="no" frameborder="no" allow="autoplay" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/293&auto_play=false"></iframe>
+    <audio id="html-player" preload="auto"></audio>
 
     <script>
-        const scIframe = document.getElementById('sc-iframe');
-        const scWidget = SC.Widget(scIframe);
+        const scWidget = SC.Widget(document.getElementById('sc-iframe'));
         const htmlPlayer = document.getElementById('html-player');
 
         window.addEventListener('message', function(event) {
             try {
                 let data = JSON.parse(event.data);
-                
                 if (data.action === 'play') {
-                    let url = data.url;
-                    
-                    // Zatrzymujemy wszystko na wszelki wypadek
-                    scWidget.pause();
-                    htmlPlayer.pause();
-                    htmlPlayer.src = "";
-
-                    // Sprawdzamy czy to SoundCloud czy Zwykłe Radio
-                    if (url.includes("soundcloud.com")) {
-                        // Ładujemy SoundCloud bez widoku i z auto-startem
-                        scWidget.load(url, { 
-                            auto_play: true, buying: false, liking: false, download: false, 
-                            sharing: false, show_artwork: false, show_comments: false, 
-                            show_playcount: false, show_user: false 
-                        });
+                    scWidget.pause(); htmlPlayer.pause();
+                    if (data.url.includes("soundcloud.com")) {
+                        scWidget.load(data.url, { auto_play: true, show_artwork: false });
                     } else {
-                        // Ładujemy zwykły strumień (np. radio internetowe .mp3)
-                        htmlPlayer.src = url;
-                        htmlPlayer.volume = 0.5;
+                        htmlPlayer.src = data.url;
                         htmlPlayer.play();
                     }
-                } 
-                else if (data.action === 'stop') {
-                    scWidget.pause();
-                    htmlPlayer.pause();
-                    htmlPlayer.src = "";
-                } 
-                else if (data.action === 'volume') {
-                    let v = data.vol;
-                    scWidget.setVolume(v); // SoundCloud używa głośności 0-100
-                    htmlPlayer.volume = v / 100.0; // HTML5 Player używa 0.0 - 1.0
+                } else if (data.action === 'stop') {
+                    scWidget.pause(); htmlPlayer.pause(); htmlPlayer.src = "";
+                } else if (data.action === 'volume') {
+                    scWidget.setVolume(data.vol);
+                    htmlPlayer.volume = data.vol / 100.0;
                 }
             } catch(e) {}
         });
+
+        // Zapobieganie usypianiu odtwarzacza
+        setInterval(() => { if(htmlPlayer.paused === false) { let v = htmlPlayer.volume; htmlPlayer.volume = v; } }, 10000);
     </script>
 </body>
 </html>
